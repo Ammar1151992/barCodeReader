@@ -198,9 +198,10 @@
 
             try {
               statusEl.textContent = "📤 جارٍ الإرسال...";
-              tg.sendData(currentBarcode);
+              // Send as JSON so the bot can parse and reply (e.g. message.web_app_data.data)
+              tg.sendData(JSON.stringify({ barcode: currentBarcode }));
 
-              // ✅ don't close immediately. wait 800ms
+              // Don't close immediately so the user sees "sending" state
               setTimeout(() => {
                 try {
                   codeReader.reset();
