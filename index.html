@@ -97,6 +97,9 @@
       <button type="button" class="btn-send" id="btnSend">
         إرسال هذا الباركود
       </button>
+      <button type="button" class="btn-send visible" id="btnTest">
+        TEST SEND
+      </button>
       <p class="hint">انتظر قليلاً لاختيار الباركود الصحيح ثم اضغط إرسال</p>
     </div>
 
@@ -105,7 +108,14 @@
       const barcodeValueEl = document.getElementById("barcodeValue");
       const btnSend = document.getElementById("btnSend");
       const videoEl = document.getElementById("video");
+      const btnTest = document.getElementById("btnTest");
 
+      btnTest.addEventListener("click", () => {
+        const tg = window.Telegram?.WebApp;
+        if (!tg) return alert("Not in Telegram WebApp");
+        tg.sendData("TEST_123");
+        setTimeout(() => tg.close(), 500);
+      });
       const tg = window.Telegram?.WebApp;
       if (tg) {
         tg.ready();
@@ -163,7 +173,7 @@
         }
       }
 
-// Buton for sendf barcode
+      // Buton for sendf barcode
 
       btnSend.addEventListener("click", function () {
         if (sent || !currentBarcode) return;
