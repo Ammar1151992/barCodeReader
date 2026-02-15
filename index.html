@@ -5,15 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Barcode Scanner</title>
 
-  <!-- IMPORTANT: Telegram WebApp API -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-  <!-- ZXing -->
   <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 
   <style>
     body { margin: 0; background: #000; font-family: sans-serif; color: #fff; overflow: hidden; }
-    .viewport { position: relative; width: 100vw; height: 80vh; }
+    .viewport { position: relative; width: 100vw; height: 75vh; }
     video { width: 100%; height: 100%; object-fit: cover; }
 
     .line {
@@ -24,13 +21,30 @@
     }
 
     .ui {
-      height: 20vh; background: #fff; color: #333;
-      text-align: center; padding-top: 16px; border-radius: 20px 20px 0 0;
+      height: 25vh; background: #fff; color: #333;
+      text-align: center; padding: 12px 16px; border-radius: 20px 20px 0 0;
+      display: flex; flex-direction: column; justify-content: center; gap: 8px;
     }
-    #status { font-weight: bold; font-size: 1.1rem; }
+    #status { font-weight: bold; font-size: 1rem; }
+    #barcodeValue {
+      font-size: 0.95rem; color: #666; word-break: break-all; min-height: 1.4em;
+    }
+    .btn-send {
+      display: none;
+      margin: 4px auto 0;
+      padding: 12px 24px;
+      font-size: 1.1rem;
+      background: #3390ec;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-send.visible { display: block; }
+    .hint { color: #999; font-size: 0.85rem; margin: 0; }
   </style>
 </head>
-
 <body>
   <div class="viewport">
     <video id="video" autoplay playsinline muted></video>
@@ -39,14 +53,17 @@
 
   <div class="ui">
     <div id="status">جاري تشغيل الكاميرا...</div>
-    <p style="color:#666;margin:8px 0 0;">ضع الباركود موازياً للخط الأخضر</p>
+    <div id="barcodeValue"></div>
+    <button type="button" class="btn-send" id="btnSend">إرسال هذا الباركود</button>
+    <p class="hint">انتظر قليلاً لاختيار الباركود الصحيح ثم اضغط إرسال</p>
   </div>
 
   <script>
     const statusEl = document.getElementById('status');
+    const barcodeValueEl = document.getElementById('barcodeValue');
+    const btnSend = document.getElementById('btnSend');
     const videoEl = document.getElementById('video');
 
-    // Telegram init
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
@@ -58,6 +75,21 @@
     let sent = false;
     let lastText = "";
     let lastAt = 0;
+    let currentBarcode = "";
+
+    function debouncedUpdateBarcode(text) {
+      const now = Date.now();
+      if (text === lastText && (now - lastAt) < 800) return;
+      lastText = text;
+      lastAt = now;
+
+      currentBarcode = text;
+      barcodeValueEl.textContent = "تم القراءة: " + text;
+      barcodeValueEl.style.color = "green";
+      statusEl.textContent = "اضغط «إرسال» أو وجّه الكاميرا لباركود آخر";
+      statusEl.style.color = "#333";
+      btnSend.classList.add('visible');
+    }
 
     async function startScanner() {
       const constraints = {
@@ -71,52 +103,44 @@
       try {
         statusEl.textContent = "وجّه الكاميرا نحو الباركود...";
         await codeReader.decodeFromConstraints(constraints, videoEl, (result, err) => {
-          if (!result) return;
-          if (sent) return;
+          if (!result || sent) return;
 
           const text = (result.getText() || "").trim();
           if (!text) return;
 
-          // Debounce: prevent repeated triggers
-          const now = Date.now();
-          if (text === lastText && (now - lastAt) < 1500) return;
-          lastText = text;
-          lastAt = now;
-
-          sent = true; // lock
-
-          statusEl.textContent = "✅ تم القراءة: " + text;
-          statusEl.style.color = "green";
-
-          try {
-            if (tg) {
-              tg.hapticFeedback?.notificationOccurred?.('success');
-              tg.sendData(text);
-              // stop scanning + close mini app
-              setTimeout(() => {
-                codeReader.reset();
-                tg.close();
-              }, 200);
-            } else {
-              // If not opened inside Telegram, show text on screen only
-              // (no popup)
-              setTimeout(() => {
-                sent = false;
-                statusEl.style.color = "#333";
-                statusEl.textContent = "وجّه الكاميرا نحو الباركود...";
-              }, 2000);
-            }
-          } catch (e) {
-            sent = false;
-            statusEl.style.color = "red";
-            statusEl.textContent = "❌ فشل الإرسال: " + e;
-          }
+          debouncedUpdateBarcode(text);
         });
       } catch (error) {
         statusEl.textContent = "❌ خطأ في الكاميرا: " + (error?.message || error);
         statusEl.style.color = "red";
       }
     }
+
+    btnSend.addEventListener('click', function () {
+      if (sent || !currentBarcode) return;
+
+      sent = true;
+      statusEl.textContent = "جاري الإرسال...";
+      btnSend.classList.remove('visible');
+
+      try {
+        if (tg) {
+          tg.hapticFeedback?.notificationOccurred?.('success');
+          tg.sendData(currentBarcode);
+          codeReader.reset();
+          tg.close();
+        } else {
+          statusEl.textContent = "✅ تم: " + currentBarcode;
+          statusEl.style.color = "green";
+          setTimeout(() => { sent = false; btnSend.classList.add('visible'); }, 2000);
+        }
+      } catch (e) {
+        sent = false;
+        statusEl.style.color = "red";
+        statusEl.textContent = "❌ فشل الإرسال: " + e;
+        btnSend.classList.add('visible');
+      }
+    });
 
     if (!window.isSecureContext) {
       statusEl.textContent = "❌ يجب استخدام رابط HTTPS آمن";
