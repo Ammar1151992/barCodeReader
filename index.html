@@ -1,169 +1,228 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Barcode Scanner</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>Barcode Scanner</title>
 
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 
-  <style>
-    body { margin: 0; background: #000; font-family: sans-serif; color: #fff; overflow: hidden; }
-    .viewport { position: relative; width: 100vw; height: 75vh; }
-    video { width: 100%; height: 100%; object-fit: cover; }
-
-    .line {
-      position: absolute; top: 50%; left: 10%; right: 10%;
-      height: 2px; background: #00ff00;
-      box-shadow: 0 0 12px #00ff00;
-      z-index: 5;
-    }
-
-    .ui {
-      height: 25vh; background: #fff; color: #333;
-      text-align: center; padding: 12px 16px; border-radius: 20px 20px 0 0;
-      display: flex; flex-direction: column; justify-content: center; gap: 8px;
-    }
-    #status { font-weight: bold; font-size: 1rem; }
-    #barcodeValue {
-      font-size: 0.95rem; color: #666; word-break: break-all; min-height: 1.4em;
-    }
-    .btn-send {
-      display: none;
-      margin: 4px auto 0;
-      padding: 12px 24px;
-      font-size: 1.1rem;
-      background: #3390ec;
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .btn-send.visible { display: block; }
-    .hint { color: #999; font-size: 0.85rem; margin: 0; }
-  </style>
-</head>
-<body>
-  <div class="viewport">
-    <video id="video" autoplay playsinline muted></video>
-    <div class="line"></div>
-  </div>
-
-  <div class="ui">
-    <div id="status">جاري تشغيل الكاميرا...</div>
-    <div id="barcodeValue"></div>
-    <button type="button" class="btn-send" id="btnSend">إرسال هذا الباركود</button>
-    <p class="hint">انتظر قليلاً لاختيار الباركود الصحيح ثم اضغط إرسال</p>
-  </div>
-
-  <script>
-    const statusEl = document.getElementById('status');
-    const barcodeValueEl = document.getElementById('barcodeValue');
-    const btnSend = document.getElementById('btnSend');
-    const videoEl = document.getElementById('video');
-
-    const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-    }
-
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-
-    let sent = false;
-    let lastText = "";
-    let lastAt = 0;
-    let currentBarcode = "";
-
-    function debouncedUpdateBarcode(text) {
-      const now = Date.now();
-      if (text === lastText && (now - lastAt) < 800) return;
-      lastText = text;
-      lastAt = now;
-
-      currentBarcode = text;
-      barcodeValueEl.textContent = "تم القراءة: " + text;
-      barcodeValueEl.style.color = "green";
-      statusEl.textContent = "اضغط «إرسال» أو وجّه الكاميرا لباركود آخر";
-      statusEl.style.color = "#333";
-      btnSend.classList.add('visible');
-    }
-
-    async function startScanner() {
-      const constraints = {
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      };
-
-      try {
-        statusEl.textContent = "وجّه الكاميرا نحو الباركود...";
-        await codeReader.decodeFromConstraints(constraints, videoEl, (result, err) => {
-          if (!result || sent) return;
-
-          const text = (result.getText() || "").trim();
-          if (!text) return;
-
-          debouncedUpdateBarcode(text);
-        });
-      } catch (error) {
-        statusEl.textContent = "❌ خطأ في الكاميرا: " + (error?.message || error);
-        statusEl.style.color = "red";
+    <style>
+      body {
+        margin: 0;
+        background: #000;
+        font-family: sans-serif;
+        color: #fff;
+        overflow: hidden;
       }
-    }
+      .viewport {
+        position: relative;
+        width: 100vw;
+        height: 75vh;
+      }
+      video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
 
-    btnSend.addEventListener('click', function () {
-  if (sent || !currentBarcode) return;
+      .line {
+        position: absolute;
+        top: 50%;
+        left: 10%;
+        right: 10%;
+        height: 2px;
+        background: #00ff00;
+        box-shadow: 0 0 12px #00ff00;
+        z-index: 5;
+      }
 
-  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+      .ui {
+        height: 25vh;
+        background: #fff;
+        color: #333;
+        text-align: center;
+        padding: 12px 16px;
+        border-radius: 20px 20px 0 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 8px;
+      }
+      #status {
+        font-weight: bold;
+        font-size: 1rem;
+      }
+      #barcodeValue {
+        font-size: 0.95rem;
+        color: #666;
+        word-break: break-all;
+        min-height: 1.4em;
+      }
+      .btn-send {
+        display: none;
+        margin: 4px auto 0;
+        padding: 12px 24px;
+        font-size: 1.1rem;
+        background: #3390ec;
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .btn-send.visible {
+        display: block;
+      }
+      .hint {
+        color: #999;
+        font-size: 0.85rem;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="viewport">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="line"></div>
+    </div>
 
-  // ✅ DEBUG: if not inside Telegram WebApp
-  if (!tg) {
-    alert("❌ الصفحة ليست داخل Telegram WebApp.\nافتحها من زر البوت فقط.");
-    return;
-  }
+    <div class="ui">
+      <div id="status">جاري تشغيل الكاميرا...</div>
+      <div id="barcodeValue"></div>
+      <button type="button" class="btn-send" id="btnSend">
+        إرسال هذا الباركود
+      </button>
+      <p class="hint">انتظر قليلاً لاختيار الباركود الصحيح ثم اضغط إرسال</p>
+    </div>
 
-  sent = true;
-  statusEl.textContent = "جاري الإرسال...";
-  btnSend.classList.remove('visible');
+    <script>
+      const statusEl = document.getElementById("status");
+      const barcodeValueEl = document.getElementById("barcodeValue");
+      const btnSend = document.getElementById("btnSend");
+      const videoEl = document.getElementById("video");
 
-  try {
-    tg.hapticFeedback?.notificationOccurred?.('success');
+      const tg = window.Telegram?.WebApp;
+      if (tg) {
+        tg.ready();
+        tg.expand();
+      }
 
-    // ✅ show a popup inside Telegram to confirm click worked
-    tg.showPopup?.({
-      title: "إرسال الباركود",
-      message: "سيتم إرسال: " + currentBarcode,
-      buttons: [{type: "ok"}]
-    });
+      const codeReader = new ZXing.BrowserMultiFormatReader();
 
-    tg.sendData(currentBarcode);
+      let sent = false;
+      let lastText = "";
+      let lastAt = 0;
+      let currentBarcode = "";
 
-    // give telegram a moment then close
-    setTimeout(() => {
-      codeReader.reset();
-      tg.close();
-    }, 250);
+      function debouncedUpdateBarcode(text) {
+        const now = Date.now();
+        if (text === lastText && now - lastAt < 800) return;
+        lastText = text;
+        lastAt = now;
 
-  } catch (e) {
-    sent = false;
-    statusEl.style.color = "red";
-    statusEl.textContent = "❌ فشل الإرسال: " + e;
-    btnSend.classList.add('visible');
-    alert("ERROR: " + e);
-  }
-});
+        currentBarcode = text;
+        barcodeValueEl.textContent = "تم القراءة: " + text;
+        barcodeValueEl.style.color = "green";
+        statusEl.textContent = "اضغط «إرسال» أو وجّه الكاميرا لباركود آخر";
+        statusEl.style.color = "#333";
+        btnSend.classList.add("visible");
+      }
 
-    if (!window.isSecureContext) {
-      statusEl.textContent = "❌ يجب استخدام رابط HTTPS آمن";
-      statusEl.style.color = "red";
-    } else {
-      startScanner();
-    }
-  </script>
-</body>
+      async function startScanner() {
+        const constraints = {
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        };
+
+        try {
+          statusEl.textContent = "وجّه الكاميرا نحو الباركود...";
+          await codeReader.decodeFromConstraints(
+            constraints,
+            videoEl,
+            (result, err) => {
+              if (!result || sent) return;
+
+              const text = (result.getText() || "").trim();
+              if (!text) return;
+
+              debouncedUpdateBarcode(text);
+            },
+          );
+        } catch (error) {
+          statusEl.textContent =
+            "❌ خطأ في الكاميرا: " + (error?.message || error);
+          statusEl.style.color = "red";
+        }
+      }
+
+// Buton for sendf barcode
+
+      btnSend.addEventListener("click", function () {
+        if (sent || !currentBarcode) return;
+
+        const tg = window.Telegram?.WebApp;
+        if (!tg) {
+          alert("افتح الصفحة من زر البوت داخل تيليجرام.");
+          return;
+        }
+
+        sent = true;
+        statusEl.textContent = "تأكيد الإرسال...";
+        btnSend.classList.remove("visible");
+
+        tg.showPopup(
+          {
+            title: "إرسال الباركود",
+            message: "سيتم إرسال: " + currentBarcode,
+            buttons: [
+              { id: "ok", type: "ok" },
+              { id: "cancel", type: "cancel" },
+            ],
+          },
+          (btnId) => {
+            if (btnId !== "ok") {
+              // user cancelled
+              sent = false;
+              statusEl.textContent = "تم الإلغاء. يمكنك اختيار باركود آخر.";
+              btnSend.classList.add("visible");
+              return;
+            }
+
+            try {
+              statusEl.textContent = "📤 جارٍ الإرسال...";
+              tg.sendData(currentBarcode);
+
+              // ✅ don't close immediately. wait 800ms
+              setTimeout(() => {
+                try {
+                  codeReader.reset();
+                } catch (e) {}
+                tg.close();
+              }, 800);
+            } catch (e) {
+              sent = false;
+              statusEl.textContent = "❌ فشل الإرسال: " + e;
+              statusEl.style.color = "red";
+              btnSend.classList.add("visible");
+            }
+          },
+        );
+      });
+
+      if (!window.isSecureContext) {
+        statusEl.textContent = "❌ يجب استخدام رابط HTTPS آمن";
+        statusEl.style.color = "red";
+      } else {
+        startScanner();
+      }
+    </script>
+  </body>
 </html>
