@@ -117,30 +117,46 @@
     }
 
     btnSend.addEventListener('click', function () {
-      if (sent || !currentBarcode) return;
+  if (sent || !currentBarcode) return;
 
-      sent = true;
-      statusEl.textContent = "جاري الإرسال...";
-      btnSend.classList.remove('visible');
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
-      try {
-        if (tg) {
-          tg.hapticFeedback?.notificationOccurred?.('success');
-          tg.sendData(currentBarcode);
-          codeReader.reset();
-          tg.close();
-        } else {
-          statusEl.textContent = "✅ تم: " + currentBarcode;
-          statusEl.style.color = "green";
-          setTimeout(() => { sent = false; btnSend.classList.add('visible'); }, 2000);
-        }
-      } catch (e) {
-        sent = false;
-        statusEl.style.color = "red";
-        statusEl.textContent = "❌ فشل الإرسال: " + e;
-        btnSend.classList.add('visible');
-      }
+  // ✅ DEBUG: if not inside Telegram WebApp
+  if (!tg) {
+    alert("❌ الصفحة ليست داخل Telegram WebApp.\nافتحها من زر البوت فقط.");
+    return;
+  }
+
+  sent = true;
+  statusEl.textContent = "جاري الإرسال...";
+  btnSend.classList.remove('visible');
+
+  try {
+    tg.hapticFeedback?.notificationOccurred?.('success');
+
+    // ✅ show a popup inside Telegram to confirm click worked
+    tg.showPopup?.({
+      title: "إرسال الباركود",
+      message: "سيتم إرسال: " + currentBarcode,
+      buttons: [{type: "ok"}]
     });
+
+    tg.sendData(currentBarcode);
+
+    // give telegram a moment then close
+    setTimeout(() => {
+      codeReader.reset();
+      tg.close();
+    }, 250);
+
+  } catch (e) {
+    sent = false;
+    statusEl.style.color = "red";
+    statusEl.textContent = "❌ فشل الإرسال: " + e;
+    btnSend.classList.add('visible');
+    alert("ERROR: " + e);
+  }
+});
 
     if (!window.isSecureContext) {
       statusEl.textContent = "❌ يجب استخدام رابط HTTPS آمن";
