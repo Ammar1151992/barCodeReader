@@ -97,9 +97,6 @@
       <button type="button" class="btn-send" id="btnSend">
         إرسال هذا الباركود
       </button>
-      <button type="button" class="btn-send visible" id="btnTest">
-        TEST SEND
-      </button>
       <p class="hint">انتظر قليلاً لاختيار الباركود الصحيح ثم اضغط إرسال</p>
     </div>
 
@@ -110,17 +107,6 @@
       const videoEl = document.getElementById("video");
       const btnTest = document.getElementById("btnTest");
 
-      btnTest.addEventListener("click", () => {
-        const tg = window.Telegram?.WebApp;
-        if (!tg) return alert("Not in Telegram WebApp");
-        tg.sendData("TEST_123");
-        setTimeout(() => tg.close(), 500);
-      });
-      const tg = window.Telegram?.WebApp;
-      if (tg) {
-        tg.ready();
-        tg.expand();
-      }
 
       const codeReader = new ZXing.BrowserMultiFormatReader();
 
