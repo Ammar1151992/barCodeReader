@@ -147,7 +147,7 @@
         if (sendTimeoutId) clearTimeout(sendTimeoutId);
         if (countdownIntervalId) clearInterval(countdownIntervalId);
 
-        var secLeft = 3;
+        var secLeft = 1;
         countdownEl.textContent = "سيتم الإرسال خلال " + secLeft + " ثانية...";
         countdownIntervalId = setInterval(function () {
           secLeft--;
