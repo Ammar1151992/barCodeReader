@@ -63,25 +63,10 @@
         word-break: break-all;
         min-height: 1.4em;
       }
-      .btn-send {
-        display: none;
-        margin: 4px auto 0;
-        padding: 12px 24px;
-        font-size: 1.1rem;
-        background: #3390ec;
-        color: #fff;
-        border: none;
-        border-radius: 12px;
-        cursor: pointer;
-        font-weight: bold;
-      }
-      .btn-send.visible {
-        display: block;
-      }
-      .hint {
-        color: #999;
-        font-size: 0.85rem;
-        margin: 0;
+      .countdown {
+        color: #3390ec;
+        font-size: 0.9rem;
+        margin-top: 4px;
       }
     </style>
   </head>
@@ -94,18 +79,20 @@
     <div class="ui">
       <div id="status">جاري تشغيل الكاميرا...</div>
       <div id="barcodeValue"></div>
-      <button type="button" class="btn-send" id="btnSend">
-        إرسال هذا الباركود
-      </button>
-      <p class="hint">انتظر قليلاً لاختيار الباركود الصحيح ثم اضغط إرسال</p>
+      <div id="countdown" class="countdown"></div>
     </div>
 
     <script>
       const statusEl = document.getElementById("status");
       const barcodeValueEl = document.getElementById("barcodeValue");
-      const btnSend = document.getElementById("btnSend");
+      const countdownEl = document.getElementById("countdown");
       const videoEl = document.getElementById("video");
-      const btnTest = document.getElementById("btnTest");
+
+      const tg = window.Telegram?.WebApp;
+      if (tg) {
+        tg.ready();
+        tg.expand();
+      }
 
       const codeReader = new ZXing.BrowserMultiFormatReader();
 
@@ -113,23 +100,73 @@
       let lastText = "";
       let lastAt = 0;
       let currentBarcode = "";
+      let sendTimeoutId = null;
+      let countdownIntervalId = null;
+
+      function sendToTelegram() {
+        if (sent || !currentBarcode) return;
+        var tg = window.Telegram?.WebApp;
+        if (!tg) {
+          statusEl.textContent = "افتح التطبيق من زر البوت داخل تيليجرام.";
+          statusEl.style.color = "red";
+          return;
+        }
+        sent = true;
+        countdownEl.textContent = "";
+        statusEl.textContent = "📤 جارٍ الإرسال...";
+        statusEl.style.color = "#333";
+        try {
+          tg.sendData(JSON.stringify({ barcode: currentBarcode }));
+          setTimeout(function () {
+            try {
+              codeReader.reset();
+            } catch (e) {}
+            tg.close();
+          }, 500);
+        } catch (e) {
+          sent = false;
+          statusEl.textContent = "❌ فشل الإرسال: " + (e && e.message ? e.message : e);
+          statusEl.style.color = "red";
+        }
+      }
 
       function debouncedUpdateBarcode(text) {
         const now = Date.now();
-        if (text === lastText && now - lastAt < 800) return;
+        if (text === lastText && now - lastAt < 600) return;
         lastText = text;
         lastAt = now;
+
+        if (sent) return;
 
         currentBarcode = text;
         barcodeValueEl.textContent = "تم القراءة: " + text;
         barcodeValueEl.style.color = "green";
-        statusEl.textContent = "اضغط «إرسال» أو وجّه الكاميرا لباركود آخر";
+        statusEl.textContent = "تم التعرف على الباركود";
         statusEl.style.color = "#333";
-        btnSend.classList.add("visible");
+
+        if (sendTimeoutId) clearTimeout(sendTimeoutId);
+        if (countdownIntervalId) clearInterval(countdownIntervalId);
+
+        var secLeft = 3;
+        countdownEl.textContent = "سيتم الإرسال خلال " + secLeft + " ثانية...";
+        countdownIntervalId = setInterval(function () {
+          secLeft--;
+          if (secLeft <= 0) return;
+          countdownEl.textContent = "سيتم الإرسال خلال " + secLeft + " ثانية...";
+        }, 1000);
+
+        sendTimeoutId = setTimeout(function () {
+          sendTimeoutId = null;
+          if (countdownIntervalId) {
+            clearInterval(countdownIntervalId);
+            countdownIntervalId = null;
+          }
+          sendToTelegram();
+        }, 3000);
       }
 
       async function startScanner() {
-        const constraints = {
+        var constraints = {
           video: {
             facingMode: { ideal: "environment" },
             width: { ideal: 1280 },
@@ -142,10 +179,10 @@
           await codeReader.decodeFromConstraints(
             constraints,
             videoEl,
-            (result, err) => {
+            function (result, err) {
               if (!result || sent) return;
 
-              const text = (result.getText() || "").trim();
+              var text = (result.getText() || "").trim();
               if (!text) return;
 
               debouncedUpdateBarcode(text);
@@ -153,44 +190,10 @@
           );
         } catch (error) {
           statusEl.textContent =
-            "❌ خطأ في الكاميرا: " + (error?.message || error);
+            "❌ خطأ في الكاميرا: " + (error && error.message ? error.message : error);
           statusEl.style.color = "red";
         }
       }
-
-      // Buton for sendf barcode
-
-      btnSend.addEventListener("click", function () {
-        if (sent || !currentBarcode) return;
-
-        const tg = window.Telegram?.WebApp;
-        if (!tg) {
-          alert("افتح الصفحة من زر البوت داخل تيليجرام.");
-          return;
-        }
-
-        sent = true;
-        statusEl.textContent = "تأكيد الإرسال...";
-        btnSend.classList.remove("visible");
-        try {
-          statusEl.textContent = "📤 جارٍ الإرسال...";
-          // Send as JSON so the bot can parse and reply (e.g. message.web_app_data.data)
-          tg.sendData(JSON.stringify({ barcode: currentBarcode }));
-
-          // Don't close immediately so the user sees "sending" state
-          setTimeout(() => {
-            try {
-              codeReader.reset();
-            } catch (e) {}
-            tg.close();
-          }, 800);
-        } catch (e) {
-          sent = false;
-          statusEl.textContent = "❌ فشل الإرسال: " + e;
-          statusEl.style.color = "red";
-          btnSend.classList.add("visible");
-        }
-      });
 
       if (!window.isSecureContext) {
         statusEl.textContent = "❌ يجب استخدام رابط HTTPS آمن";
