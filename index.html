@@ -107,7 +107,6 @@
       const videoEl = document.getElementById("video");
       const btnTest = document.getElementById("btnTest");
 
-
       const codeReader = new ZXing.BrowserMultiFormatReader();
 
       let sent = false;
@@ -171,47 +170,25 @@
         }
 
         sent = true;
-        statusEl.textContent = "تأكيد الإرسال...";
         btnSend.classList.remove("visible");
+        try {
+          statusEl.textContent = "📤 جارٍ الإرسال...";
+          // Send as JSON so the bot can parse and reply (e.g. message.web_app_data.data)
+          tg.sendData(JSON.stringify({ barcode: currentBarcode }));
 
-        tg.showPopup(
-          {
-            title: "إرسال الباركود",
-            message: "سيتم إرسال: " + currentBarcode,
-            buttons: [
-              { id: "ok", type: "ok" },
-              { id: "cancel", type: "cancel" },
-            ],
-          },
-          (btnId) => {
-            if (btnId !== "ok") {
-              // user cancelled
-              sent = false;
-              statusEl.textContent = "تم الإلغاء. يمكنك اختيار باركود آخر.";
-              btnSend.classList.add("visible");
-              return;
-            }
-
+          // Don't close immediately so the user sees "sending" state
+          setTimeout(() => {
             try {
-              statusEl.textContent = "📤 جارٍ الإرسال...";
-              // Send as JSON so the bot can parse and reply (e.g. message.web_app_data.data)
-              tg.sendData(JSON.stringify({ barcode: currentBarcode }));
-
-              // Don't close immediately so the user sees "sending" state
-              setTimeout(() => {
-                try {
-                  codeReader.reset();
-                } catch (e) {}
-                tg.close();
-              }, 800);
-            } catch (e) {
-              sent = false;
-              statusEl.textContent = "❌ فشل الإرسال: " + e;
-              statusEl.style.color = "red";
-              btnSend.classList.add("visible");
-            }
-          },
-        );
+              codeReader.reset();
+            } catch (e) {}
+            tg.close();
+          }, 800);
+        } catch (e) {
+          sent = false;
+          statusEl.textContent = "❌ فشل الإرسال: " + e;
+          statusEl.style.color = "red";
+          btnSend.classList.add("visible");
+        }
       });
 
       if (!window.isSecureContext) {
